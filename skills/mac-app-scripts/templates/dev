@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# name: dev
+# description: Fast local loop — build @@APP@@, then relaunch it
+# created: @@DATE@@
+#
+# Usage:
+#   ./scripts/dev              # rebuild and relaunch
+#   ./scripts/dev file.ext     # ... and open that document
+#
+# For an optimised build use ./scripts/build.sh --release.
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+APP="build/@@BUNDLE@@.app"
+BIN="$APP/Contents/MacOS/@@BUNDLE@@"
+
+./scripts/build.sh
+
+# Quit the running app (if any), then wait for it to fully exit before
+# relaunching — opening mid-shutdown races LaunchServices (error -600).
+osascript -e 'quit app "@@APP@@"' 2>/dev/null || true
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+    pgrep -f "$BIN" >/dev/null 2>&1 || break
+    sleep 0.3
+done
+
+# build.sh already re-registered the bundle; the retry covers the -600 race that
+# a cold registration can still lose.
+if [ $# -gt 0 ]; then
+    open "$APP" --args "$@" || { sleep 0.5; open "$APP" --args "$@"; }
+else
+    open "$APP" || { sleep 0.5; open "$APP"; }
+fi
