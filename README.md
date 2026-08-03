@@ -19,6 +19,7 @@ somebody's own skill and it lives nowhere else.
 
 | Skill | For |
 |---|---|
+| [`agents-queue`](skills/agents-queue) | Put a reviewed task queue in the repo as `agents-queue/`, so plans get written and read before anything is built — then run the worker on a loop and only do the planning |
 | [`mac-app-scripts`](skills/mac-app-scripts) | Give a macOS app repo the standard `build`, `dev`, `test`, `bundle`, `clean` scripts and the `.work/` shims that make them `work build`, `work dev` |
 
 ## Writing one
