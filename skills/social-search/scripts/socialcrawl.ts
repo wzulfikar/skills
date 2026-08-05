@@ -135,20 +135,39 @@ function printAuthor(a: any) {
   if (a.url) console.log(a.url);
 }
 
+// The search endpoints do NOT all share one schema. IG/Threads/Reddit/YouTube/
+// TikTok use { content, engagement, author }; LinkedIn uses { title, activity:
+// {num_likes,…}, author:{name} }; others vary again. Coalesce across the known
+// field names so every platform prints text + stats + author.
+function pick(...vals: any[]) {
+  for (const v of vals) if (v !== undefined && v !== null) return v;
+  return undefined;
+}
+
 function printPost(p: any) {
   const c = p.content ?? {};
   const e = p.engagement ?? {};
+  const act = p.activity ?? {}; // linkedin
   const au = p.author ?? {};
-  const when = p.published_at ?? "";
+  const when = pick(p.published_at, p.created_at, p.date, "");
+  const likes = pick(e.likes, act.num_likes, p.likes, p.like_count);
+  const comments = pick(e.comments, act.num_comments, p.comments, p.comment_count);
+  const views = pick(e.views, p.views, p.view_count, p.play_count);
+  const shares = pick(e.shares, act.num_shares, p.shares);
+  const saves = pick(e.saves, p.saves);
+  const who = pick(au.username, au.name, au.handle, "?");
   console.log(
-    `\n@${au.username ?? "?"}${au.verified ? " ✓" : ""}` +
+    `\n@${who}${au.verified ? " ✓" : ""}` +
       (when ? ` · ${when}` : "") +
-      `  ❤ ${fmt(e.likes)} 💬 ${fmt(e.comments)}` +
-      (e.views != null ? ` 👁 ${fmt(e.views)}` : "") +
-      (e.shares != null ? ` 🔁 ${fmt(e.shares)}` : "") +
-      (e.saves != null ? ` 🔖 ${fmt(e.saves)}` : ""),
+      `  ❤ ${fmt(likes)} 💬 ${fmt(comments)}` +
+      (views != null ? ` 👁 ${fmt(views)}` : "") +
+      (shares != null ? ` 🔁 ${fmt(shares)}` : "") +
+      (saves != null ? ` 🔖 ${fmt(saves)}` : ""),
   );
-  const text = (c.text ?? "").replace(/\n/g, " ");
+  const text = String(pick(c.text, p.title, p.text, p.description, p.caption, "")).replace(
+    /\n/g,
+    " ",
+  );
   if (text) console.log(text);
   if (p.url) console.log(p.url);
 }
