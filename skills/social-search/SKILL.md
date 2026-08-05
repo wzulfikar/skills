@@ -68,6 +68,8 @@ the scripts; the endpoint paths are in the appendix.
 | **Bluesky** | socialcrawl | — | ○ | ○ | ○ | — | — | — |
 | **Truth Social** | socialcrawl | — | ○ | ○ | ○ | — | — | — |
 | **Snapchat** | socialcrawl | — | ○ | — | — | — | — | — |
+| **Google** (web) | socialcrawl | ✓ `date_posted`,`region` | — | — | ○ | — | — | — |
+| **Google News** | socialcrawl | ✓ `time_range`,`publisher` | — | — | — | — | — | — |
 | **Naver** | socialcrawl | ○ blog/news/cafe (not wired — Korean portal, off-angle) | — | — | — | — | — | — |
 
 Non-social surface socialcrawl also exposes (out of this skill's angle, but there
@@ -162,6 +164,8 @@ Author/Post schema. Invoke: `bun scripts/socialcrawl.ts search "<query>"
 | fb-ads | `/facebook/adlibrary/search/ads?query=` — `--country US` |
 | fb-events | `/facebook/events/search?query=` |
 | fb-market | `/facebook/marketplace/search?query=&lat=&lng=` — `--lat` `--lng` required |
+| google | `/google/search?query=` — `--timeframe last-hour\|last-day\|last-week\|last-month\|last-year` `--region US` (title+snippet+link, no stats) |
+| google-news | `/google_news/search?keyword=` — `--timeframe hour\|day\|week\|month\|year` `--publisher bbc.com` (outlet as author) |
 
 **Fetch verbs wired** (`profile` / `posts` / `post` / `comments`): instagram,
 threads (profile/posts/post); reddit, youtube (post + comments; youtube channel
@@ -187,6 +191,14 @@ all-time top. Sort **newest over a tight window** unless the user says otherwise
 
 - **instagram search is hashtag-only** on socialcrawl — pass a hashtag, not free text.
 - **only reddit + youtube expose comments** in the client today.
+- **LinkedIn search is Google-indexed and fuzzy** — it returns real, full posts
+  but often off-topic. The client applies a **client-side relevance filter**
+  (contiguous phrase, plus the despaced form so "Better Stack" also matches
+  "BetterStack"), **auto-on for linkedin**. Override the phrase with
+  `--match "<phrase>"`; disable with `--loose`. A `0 results (dropped N)` means
+  LinkedIn genuinely surfaced nothing on topic — that's honest, not a bug. For
+  precise brand/topic discovery prefer Reddit / HN / YouTube; use LinkedIn for
+  profile/company fetch.
 - **socialcrawl universal search = 20 credits.** Prefer a specific
   per-platform endpoint when you know the platform; reserve universal search for
   genuine cross-platform sweeps.
@@ -264,6 +276,7 @@ bring the `○` cells in the matrix online.
 **Pinterest** `/pinterest/search` ✓ · `/pinterest/pin` · `/pinterest/board` · `/pinterest/user/boards` · `/pinterest/url-stats`
 **Rumble** `/rumble/search` ✓ · `/rumble/channel/videos` · `/rumble/video`
 **Spotify** `/spotify/search` ✓ · `/spotify/podcast` · `/spotify/episode`
+**Google** `/google/search` ✓ (web) · **Google News** `/google_news/search` ✓ (uses `keyword=`, not `query=`)
 **Truth Social** `/truthsocial/profile` · `/truthsocial/user/posts` · `/truthsocial/post`
 **Snapchat** `/snapchat/profile`
 

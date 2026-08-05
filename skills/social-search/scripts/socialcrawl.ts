@@ -104,7 +104,9 @@ function toPosts(res: any): any[] {
     : (["posts", "items", "results", "data"]
         .map((k) => (d && Array.isArray(d[k]) ? d[k] : null))
         .find((v) => v) ?? (d ? [d] : []));
-  return arr.map((it: any) => (it && typeof it === "object" && it.post ? it.post : it));
+  return arr.map((it: any) =>
+    it && typeof it === "object" ? (it.post ?? it.article ?? it) : it,
+  );
 }
 
 // Same, for comment lists: data.items[] = { comment: {...} }.
@@ -144,6 +146,12 @@ function pick(...vals: any[]) {
   return undefined;
 }
 
+// The searchable text of a post across the varying schemas — used by the
+// client-side relevance filter.
+function textOf(p: any): string {
+  return String(pick(p.content?.text, p.title, p.text, p.description, p.caption, "") ?? "");
+}
+
 function printPost(p: any) {
   const c = p.content ?? {};
   const e = p.engagement ?? {};
@@ -155,7 +163,7 @@ function printPost(p: any) {
   const views = pick(e.views, p.views, p.view_count, p.play_count);
   const shares = pick(e.shares, act.num_shares, p.shares);
   const saves = pick(e.saves, p.saves);
-  const who = pick(au.username, au.name, au.handle, "?");
+  const who = pick(au.username, au.name, au.handle, p.source, "?"); // p.source = news outlet
   console.log(
     `\n@${who}${au.verified ? " ✓" : ""}` +
       (when ? ` · ${when}` : "") +
@@ -169,7 +177,8 @@ function printPost(p: any) {
     " ",
   );
   if (text) console.log(text);
-  if (p.url) console.log(p.url);
+  const url = pick(p.url, p.link); // google/search returns `link`
+  if (url) console.log(url);
 }
 
 function printComment(cm: any) {
@@ -265,6 +274,16 @@ const SEARCH: Record<string, (q: string, f: Flags) => string> = {
   "fb-events": (q) => `/facebook/events/search?query=${enc(q)}`,
   "fb-market": (q, f) =>
     `/facebook/marketplace/search?query=${enc(q)}&lat=${enc(f.lat)}&lng=${enc(f.lng)}`,
+  // Search engines — no author/engagement, just title + snippet + link. Handy
+  // for market research (brand mentions, press, SEO landscape).
+  google: (q, f) =>
+    `/google/search?query=${enc(q)}` +
+    (f.timeframe ? `&date_posted=${enc(f.timeframe)}` : "") + // last-hour|last-day|last-week|last-month|last-year
+    (f.region ? `&region=${enc(f.region)}` : ""),
+  "google-news": (q, f) =>
+    `/google_news/search?keyword=${enc(q)}` + // note: news uses `keyword`, not `query`
+    (f.timeframe ? `&time_range=${enc(f.timeframe)}` : "") + // hour|day|week|month|year
+    (f.publisher ? `&publisher=${enc(f.publisher)}` : ""), // single outlet domain, e.g. bbc.com
 };
 
 const SEARCH_PLATFORMS = Object.keys(SEARCH);
@@ -290,10 +309,35 @@ async function search(
     process.exit(1);
   }
   const res = await get(build(query, flags));
-  const out = toPosts(res).slice(0, limit);
+  let out = toPosts(res);
+
+  // Client-side relevance filter. Some search endpoints (LinkedIn especially,
+  // which is Google-indexed) return posts that merely brush the query — real
+  // full text, wrong topic. Keep only posts whose text actually contains the
+  // needle. On by default for linkedin; opt in elsewhere with --match; off with
+  // --loose. Filter runs BEFORE the limit slice, so over-fetch → filter → slice.
+  // Contiguous phrase match, plus the despaced form so a brand like "Better
+  // Stack" also catches "BetterStack". Token-AND was tried and rejected: for
+  // brands made of common words it false-positives ("better Full Stack dev").
+  // Phrase is stricter and honest — if LinkedIn genuinely surfaced nothing on
+  // topic, you see 0, not noise.
+  const needle = (flags.match || (platform === "linkedin" ? query : "")).toLowerCase().trim();
+  const nospace = needle.replace(/\s+/g, "");
+  let dropped = 0;
+  if (needle && !flags.loose) {
+    const before = out.length;
+    out = out.filter((p) => {
+      const hay = textOf(p).toLowerCase();
+      return hay.includes(needle) || (nospace !== needle && hay.includes(nospace));
+    });
+    dropped = before - out.length;
+  }
+
+  out = out.slice(0, limit);
   if (json) return console.log(JSON.stringify(out, null, 2));
   for (const p of out) printPost(p);
-  console.log(`\n${out.length} result(s)`);
+  const note = dropped ? `  (matched "${needle}", dropped ${dropped} off-topic)` : "";
+  console.log(`\n${out.length} result(s)${note}`);
 }
 
 async function post(url: string, platform: string, json: boolean) {
@@ -382,6 +426,9 @@ switch (cmd) {
         lat: flag("lat", ""),
         lng: flag("lng", ""),
         limit: flag("limit", ""),
+        match: flag("match", ""),
+        loose: argv.includes("--loose") ? "1" : "",
+        publisher: flag("publisher", ""),
       },
     );
     break;
@@ -415,6 +462,8 @@ function usage(): never {
       "search  --platform " + SEARCH_PLATFORMS.join("|"),
       '  socialcrawl search   "<query>" --platform <p> [--limit N] [--sort ..] [--timeframe ..]',
       "                                 [--type ..] [--region ..] [--tags ..] [--country ..] [--lat --lng]",
+      "                                 [--match \"phrase\"] client-side relevance filter (auto-on for linkedin)",
+      "                                 [--loose] disable the filter",
       "                                 (instagram=hashtag-only; fb-market needs --lat/--lng)",
       "  for X search use socialdata.ts — socialcrawl has no Latest/Top feed search",
       "  (add --json for raw output)",
