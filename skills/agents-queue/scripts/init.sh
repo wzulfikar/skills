@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # name: init
-# description: Create the agents-queue/ structure in a repo — prompts, tasks/, done/
+# description: Create the agents-queue/ structure in a repo — prompts, tasks/, not-ready/, done/
 # created: 2026-08-04
 #
 # Usage:
 #   init.sh --repo <path> [--stale-minutes 90] [--force]
 #
-# Existing files are never overwritten without --force. tasks/ and done/ get a
-# .gitkeep each: git does not track empty directories, and a clone whose tasks/
+# Existing files are never overwritten without --force. Each folder gets a
+# .gitkeep: git does not track empty directories, and a clone whose tasks/
 # vanished gives the worker nothing to read.
 set -euo pipefail
 
@@ -40,7 +40,7 @@ git -C "$REPO" rev-parse --git-dir >/dev/null 2>&1 \
     || echo "warning: $REPO is not a git repository — the worker claims tasks by committing them"
 
 QUEUE="$REPO/agents-queue"
-mkdir -p "$QUEUE/tasks" "$QUEUE/done"
+mkdir -p "$QUEUE/tasks" "$QUEUE/not-ready" "$QUEUE/done"
 
 render() {   # render <template> <destination>
     local src="$TEMPLATES/$1" dest="$QUEUE/$1"
@@ -57,18 +57,27 @@ echo "creating agents-queue/ in $REPO"
 render README.md
 render plan.md
 render task-worker.md
+render status.md
 
-for dir in tasks done; do
+for dir in tasks not-ready done; do
     keep="$QUEUE/$dir/.gitkeep"
     [ -e "$keep" ] || { : > "$keep"; echo "  wrote   agents-queue/$dir/.gitkeep"; }
 done
 
 cat <<DONE
 
-done. the two folders are the state: tasks/ is live, done/ is finished.
+done. the folders are the state:
 
-  /agents-queue plan         turn a conversation into tasks/NN-name.md
+  tasks/       the agent's — reviewed and pickable, or currently running
+  not-ready/   yours — drafts, open questions, blocked work
+  done/        finished, with the outcome written at the bottom
+
+ls not-ready/ is the morning check: every file there is stalled until someone
+does something. the filename says what.
+
+  /agents-queue plan         turn a conversation into a task file
   /agents-queue              claim the next ready task and implement it
+  /agents-queue status       what is ready, stalled, running, and stale
   /loop /agents-queue        self-paced, while you are around
   /loop 10m /agents-queue    fixed interval, for unattended runs
 

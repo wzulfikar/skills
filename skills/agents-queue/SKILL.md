@@ -1,6 +1,6 @@
 ---
 name: agents-queue
-description: A task queue for coding agents that lives in the repo as `agents-queue/` — plan.md and task-worker.md prompts, plus tasks/ and done/ folders of markdown task files. Use to scaffold `agents-queue/` into a repo, to turn the current conversation into a reviewed task file, to pick up and implement the next ready task, or to run the worker on a loop so queued plans get built while nobody is watching.
+description: A task queue for coding agents that lives in the repo as `agents-queue/` — plan.md and task-worker.md prompts, plus tasks/, not-ready/ and done/ folders of markdown task files. Use to scaffold `agents-queue/` into a repo, to turn the current conversation into a reviewed task file, to pick up and implement the next ready task, or to run the worker on a loop so queued plans get built while nobody is watching.
 ---
 
 # Agents queue
@@ -18,9 +18,14 @@ reading of the request.
 agents-queue/
 ├── plan.md          # prompt: turn the current conversation into a task file
 ├── task-worker.md   # prompt: pick the next ready task and implement it
-├── tasks/           # live: ready to be picked up, or waiting on something
+├── status.md        # prompt: report the queue, read-only
+├── tasks/           # the agent's: reviewed and pickable, or running
+├── not-ready/       # yours: drafts, open questions, blocked work
 └── done/            # finished, with the outcome written at the bottom
 ```
+
+The split is by who acts next, and it is what makes `ls not-ready/` a morning
+todo list rather than a filter you have to run.
 
 ## Do it
 
@@ -32,9 +37,9 @@ scripts/init.sh --repo ~/code/github/thing
 `--force` to overwrite. It refuses to clobber without it, and prints every file
 it wrote.
 
-Creates `tasks/` and `done/` with a `.gitkeep` in each — git does not track empty
-directories, and a fresh clone whose `tasks/` vanished gives the worker nothing
-to read.
+Creates `tasks/`, `not-ready/` and `done/` with a `.gitkeep` in each — git does
+not track empty directories, and a fresh clone whose `tasks/` vanished gives the
+worker nothing to read.
 
 **Then offer promotion, and ask before setting it up.** The queue is complete
 without it: a finished task keeps its Outcome in `done/` and that is the record.
@@ -57,12 +62,17 @@ leave the section as it ships; step 6.4 does nothing and the queue works.
 | `/agents-queue` | Claim the next ready task and implement it |
 | `/agents-queue init` | Scaffold `agents-queue/` into this repo |
 | `/agents-queue plan` | Turn the current conversation into a task file |
-| `/agents-queue status` | What is ready, blocked, claimed, and stale |
+| `/agents-queue status` | What is ready, stalled, claimed, and stale |
 
 Bare invocation is the work path because that is the one that runs on a loop.
 
-**The protocol lives in the repo, not here.** `agents-queue/task-worker.md` and
-`plan.md` are self-contained on purpose: they name that repo's docs layout and
+`status` is read-only and safe to run while a worker holds a task — it reports a
+stale claim rather than reclaiming it, and leaves a dirty tree alone. That is
+what makes it usable as the thing you run first, before deciding whether to
+touch anything.
+
+**The protocol lives in the repo, not here.** `agents-queue/task-worker.md`,
+`plan.md` and `status.md` are self-contained on purpose: they name that repo's docs layout and
 its stale threshold, and they have to work when piped into an agent that cannot
 see this skill. Read the repo's copy and follow it. This file scaffolds and
 explains; it does not restate the protocol, and where the two ever disagree the
@@ -125,19 +135,30 @@ Keep these when adapting the templates.
 - **`git status` before starting.** A session that died mid-task left its work in
   the tree. The next task must not be built on top of it, and the worker must
   never `reset --hard` over work it did not write.
-- **The folder is the state, not the frontmatter.** `tasks/` is live, `done/` is
-  finished; `status` only narrows down which live tasks are pickable. Two sources
-  of truth drift, and the folder is the one that always wins.
+- **The folder is the state, not the frontmatter.** Every status maps to exactly
+  one folder — `tasks/` for `ready_for_implementation` and `in_progress`,
+  `not-ready/` for `planning`, `waiting_decision` and `blocked`, `done/` for
+  `done` — so changing a status means moving the file. Two sources of truth
+  drift, and the folder is the one that always wins.
+- **The worker reads `tasks/` and nothing else.** A task becomes work when a human
+  moves it across, not when a field flips. That is also what keeps `not-ready/`
+  worth looking at: it is a list of things stalled on you, and it stops being one
+  the moment anything else lands there.
+- **A parked task says why in its filename.** `07-cdn-purge.blocked-on-INFRA-221.md`
+  answers the morning question from an `ls`; `07-cdn-purge.md` in a folder of
+  eleven others makes you open all of them. The reason still goes in the body —
+  the filename is the index, not the record.
 - **`depends_on` is enforced against `done/`, not against `status`.** A dependency
-  still sitting in `tasks/` is not satisfied whatever its status says.
+  sitting in `tasks/` or `not-ready/` is not satisfied whatever its status says.
 - **A finished task is never deleted.** The plan and its Outcome side by side are
   the record of what was intended versus what was built, and `done/` is where
   anyone looks to find what a piece of work produced.
 - **Everything downstream is written from the Outcome, not the plan.** The plan is
   what was intended. Only the Outcome says what happened.
-- **Unfinishable work gets `blocked` or `waiting_decision` with a written reason,
-  never a silent `in_progress`.** One is recoverable in the morning; the other
-  stalls every tick after it.
+- **Unfinishable work moves to `not-ready/` as `blocked` or `waiting_decision`,
+  with a written reason — never a silent `in_progress`.** One is recoverable in
+  the morning; the other stalls every tick after it, and a parked task left in
+  `tasks/` gets picked up again and fails the same way.
 
 ## What makes a task file worth having
 

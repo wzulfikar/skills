@@ -26,14 +26,16 @@
   // ==========================================
 
   function inject() {
-    if (document.getElementById(TOGGLE_ID)) return; // double-inject guard
+    // double-inject guard; reassert current state — SSR/hydrate re-renders can
+    // strip an inline override between ticks, so always re-apply, don't just return.
+    if (document.getElementById(TOGGLE_ID)) { (on ? applyOn : applyOff)(); return; }
     if (!document.body) return;                     // body not parsed yet
     var btn = document.createElement('button');
     btn.id = TOGGLE_ID;
     var s = btn.style;
-    // Placement: bottom-right, LEFT OF any chat/support launcher (~56px at
-    // right:24px). If the page has no bottom-right widget, use right:24px.
-    s.position = 'fixed'; s.right = '96px'; s.bottom = '24px'; s.zIndex = '2147483647';
+    // Placement: bottom-right. Default right:26px. If the page has a bottom-right
+    // chat/support launcher (~56px), bump to right:96px to sit left of it.
+    s.position = 'fixed'; s.right = '26px'; s.bottom = '24px'; s.zIndex = '2147483647';
     s.background = 'none'; s.border = 'none'; s.padding = '0'; s.margin = '0';
     s.cursor = 'pointer'; s.lineHeight = '0'; s.filter = 'drop-shadow(0 4px 10px rgba(0,0,0,.5))';
     btn.innerHTML = OFF;
@@ -48,7 +50,7 @@
   // SSR + hydrate pages: the element may not exist when this first runs, and
   // hydration can wipe injected nodes. Retry aggressively; the interval
   // re-injects if the button ever gets removed.
-  setInterval(inject, 400);
+  setInterval(inject, 200);
   document.addEventListener('DOMContentLoaded', inject);
   window.addEventListener('load', inject);
   setTimeout(inject, 150);

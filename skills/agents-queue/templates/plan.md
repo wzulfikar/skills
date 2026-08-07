@@ -1,5 +1,16 @@
-Turn the current request into an implementation plan and write it to
-agents-queue/tasks/ as a markdown file. Write the plan. Do not implement it.
+Turn the current request into an implementation plan and write it to the
+agents-queue/ as a markdown file. Write the plan. Do not implement it.
+
+Which folder it lands in follows from its `status`, and nothing else:
+
+- `ready_for_implementation` → `agents-queue/tasks/`
+- anything else (`planning`, `waiting_decision`, `blocked`) →
+  `agents-queue/not-ready/`
+
+Write drafts into `not-ready/` and move the file to `tasks/` at the moment you
+set `ready_for_implementation`. A task sitting in `tasks/` is a promise to the
+worker that it can be picked up cold; a half-written plan parked there is picked
+up cold.
 
 # The bar
 
@@ -26,9 +37,24 @@ ask in the file rather than guessing.
 # Naming
 
 `NN-kebab-case-name.md`, where `NN` is the next unused two-digit number across
-**both** `tasks/` and `done/`. Check both folders. Numbers are identifiers as
-well as priority — `depends_on` refers to tasks by name, so a duplicate number
-makes those references ambiguous and breaks "lowest-numbered first".
+**all three** of `tasks/`, `not-ready/` and `done/`. Check all of them. Numbers
+are identifiers as well as priority — `depends_on` refers to tasks by name, so a
+duplicate number makes those references ambiguous and breaks "lowest-numbered
+first".
+
+A file in `not-ready/` carries one extra segment saying why it is parked:
+`NN-kebab-case-name.<why>.md`. Keep it short and kebab-case, and write it so it
+reads off an `ls` without opening anything:
+
+```
+03-oauth-scope.ask-which-tenant-owns-refresh-token.md
+05-search-rank.draft.md
+07-cdn-purge.blocked-on-INFRA-221.md
+```
+
+The reason still belongs in the body — the filename is the index, not the
+record. Drop the segment when the file moves to `tasks/`; `depends_on` refers to
+the name without it.
 
 # Frontmatter
 
@@ -45,25 +71,32 @@ depends_on: 04-session-store, 06-rate-limiter
 ---
 ```
 
-`status` is one of:
+`status` is one of, with the folder each one lives in:
 
-- `planning` — being written
-- `waiting_decision` — needs a human answer before it can proceed
-- `blocked` — waiting on another task or something external
-- `ready_for_implementation` — reviewed, the worker may pick it up
-- `in_progress` — a worker has it
-- `done` — implemented, with its Outcome written
+| `status` | Folder | Meaning |
+|---|---|---|
+| `planning` | `not-ready/` | being written |
+| `waiting_decision` | `not-ready/` | needs a human answer before it can proceed |
+| `blocked` | `not-ready/` | waiting on another task or something external |
+| `ready_for_implementation` | `tasks/` | reviewed, the worker may pick it up |
+| `in_progress` | `tasks/` | a worker has it |
+| `done` | `done/` | implemented, with its Outcome written |
+
+Changing the status means moving the file. The pair never disagrees, and the
+folder is the one that wins if it ever does.
 
 `depends_on` is optional and comma-separated. List a task there only when this
 one genuinely cannot be built first — the worker will not pick this task until
-every dependency sits in `done/`, so a decorative dependency parks the task.
+every dependency sits in `done/`, so a decorative dependency parks the task. A
+dependency in `not-ready/` is not satisfied either.
 
 `risk` and the `touches_*` flags decide how carefully the human reads the plan.
 A schema change and a CSS tweak are not the same review.
 
-Set `status: ready_for_implementation` yourself only if the plan is complete and
-unambiguous. Anything unresolved gets `waiting_decision` with the question
-written in the body.
+Set `status: ready_for_implementation` yourself — and move the file to `tasks/`
+— only if the plan is complete and unambiguous. Anything unresolved stays in
+`not-ready/` as `waiting_decision`, with the question written in the body and
+summarised in the filename segment.
 
 # Body
 

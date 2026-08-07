@@ -13,14 +13,24 @@ the task.
 
 The agents-queue/tasks/ folder contains the tasks I have reviewed and that are
 ready to be picked up for implementation. Each .md file has a frontmatter header
-with a `status` field — one of `planning`, `waiting_decision`, `blocked`,
-`ready_for_implementation`, `in_progress`, or `done`. Each task has a two-digit
-prefix followed by a short description.
+with a `status` field, and a two-digit prefix followed by a short description.
 
-The folder is the state, not the frontmatter: a task in `tasks/` is live, a task
-in `done/` is finished. `status` narrows that down for the live ones — which of
-them are actually pickable, and which are waiting on a human or on something
-else.
+**The folder is the state, not the frontmatter**, and it splits by who has to act
+next:
+
+| Folder | Whose | Holds |
+|---|---|---|
+| `tasks/` | the worker's | `ready_for_implementation`, `in_progress` |
+| `not-ready/` | the human's | `planning`, `waiting_decision`, `blocked` |
+| `done/` | nobody's | `done`, with its Outcome |
+
+Read only `tasks/`. Nothing in `not-ready/` is yours to pick up, whatever its
+status says — a person has to move it across before it becomes work. That is the
+point of the split: `ls not-ready/` is a list of things stalled on a human, and
+it stays readable only if the worker never files anything there and forgets to
+say why.
+
+Changing a task's status means moving its file. Never leave the two disagreeing.
 
 When a task is done it moves to agents-queue/done/, with an Outcome section
 written at the bottom. That file is the record — nothing else is required.
@@ -59,13 +69,15 @@ session that died mid-task. Do not start a new task on top of them.
 ## 3. Pick the task
 
 Among the files in `tasks/`, consider only those with
-`status: ready_for_implementation`. Every other status means the task has not
-been reviewed, is waiting on an answer, or is blocked — skip it.
+`status: ready_for_implementation`. A reviewed task is in `tasks/` and an
+unreviewed one is in `not-ready/`, so this filter should be redundant — check it
+anyway. When it is not redundant, a file was moved without its status being
+updated, and picking it up means implementing a plan nobody approved.
 
 Then drop any task whose `depends_on` is not satisfied. `depends_on` is a
 comma-separated list of task names; a dependency is satisfied only when a file
-with that name exists in `done/`. A dependency still sitting in `tasks/` is not
-satisfied, whatever its status says.
+with that name exists in `done/`. A dependency sitting in `tasks/` or
+`not-ready/` is not satisfied, whatever its status says.
 
 Of what remains, take the lowest-numbered one. If nothing remains, say so and
 stop — an empty queue is a normal outcome, not a reason to invent work.
@@ -105,10 +117,24 @@ When the implementation is verified:
 5. Commit.
 
 If the work cannot be finished — a blocker, a decision only the human can make —
-do not leave the task at `in_progress`. Set it to `blocked` or
-`waiting_decision`, write the reason into the file, commit, and stop. A task
-parked with a written reason is recoverable in the morning; one left silently
-`in_progress` stalls every tick after it.
+do not leave the task at `in_progress`, and do not leave it in `tasks/`:
+
+1. Set `status: blocked` or `status: waiting_decision`, and remove `claimed_by` /
+   `claimed_at`.
+2. Write the reason into the body — what you tried, where it stopped, and the
+   exact question if there is one.
+3. Rename the file to `NN-name.<why>.md`, adding one short kebab-case segment
+   summarising that reason: `07-cdn-purge.blocked-on-INFRA-221.md`,
+   `03-oauth-scope.ask-which-tenant-owns-refresh-token.md`. This is the line the
+   human reads off `ls`, so make it specific — `.blocked` tells them nothing.
+4. Move it to `agents-queue/not-ready/`, commit, and stop.
+
+A task parked in `not-ready/` with a reason in its name is recoverable in the
+morning; one left silently `in_progress` stalls every tick after it, and one
+dropped back into `tasks/` gets picked up again and fails the same way.
+
+Leave any partial work as its own commit before moving the task, or say in the
+task body that you reverted it. Do not leave the tree dirty for the next tick.
 
 # Promotion
 

@@ -1,0 +1,32 @@
+name: "@@TITLE@@"
+
+on:
+  push:
+    branches:
+      - @@BRANCH@@
+    paths:
+      # Narrow this. Every path here is a reason to redeploy; anything missing
+      # is a change that ships silently on the next unrelated push.
+      - 'src/**'
+      - 'public/**'
+      - 'package.json'
+  workflow_dispatch:
+
+jobs:
+  build_and_deploy:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    environment: @@ENVIRONMENT@@
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Toolchain setup lives in a composite action so every workflow installs
+      # the same thing. Replace with setup-node/setup-bun if there is none.
+      - name: Setup project environment
+        uses: ./.github/actions/setup-ci
+
+      - name: Build and deploy
+        run: ./scripts/build_and_deploy

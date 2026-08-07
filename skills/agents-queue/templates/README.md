@@ -21,15 +21,44 @@ file. You read it. Then someone — you, a subagent, a loop — implements it.
 agents-queue/
 ├── plan.md          # prompt: turn the current conversation into a task file
 ├── task-worker.md   # prompt: pick the next ready task and implement it
-├── tasks/           # live: reviewed, ready to be picked up, or waiting on something
+├── status.md        # prompt: report the queue, read-only
+├── tasks/           # the agent's: reviewed and pickable, or currently running
+├── not-ready/       # yours: drafts, open questions, blocked work
 └── done/            # finished, with the outcome written at the bottom
 ```
 
-Two prompt files, two folders. That is the whole system.
+Three prompt files, three folders. That is the whole system.
 
-**The folder is the state.** A task in `tasks/` is live, a task in `done/` is
-finished. The `status` field narrows down the live ones — which are actually
-pickable, and which are waiting on a human or on another task.
+**The folder is the state**, and it splits by who has to act next:
+
+| Folder | Whose | Holds |
+|---|---|---|
+| `tasks/` | the worker's | `ready_for_implementation`, `in_progress` |
+| `not-ready/` | yours | `planning`, `waiting_decision`, `blocked` |
+| `done/` | nobody's | `done`, with its Outcome |
+
+Every status maps to exactly one folder, so changing a status means moving the
+file. The worker reads `tasks/` and nothing else — a plan becomes work when you
+move it across, not when a field flips.
+
+That makes `ls not-ready/` the morning check: everything in it is stalled until
+someone does something, and the filename says what.
+
+```
+$ ls agents-queue/not-ready/
+03-oauth-scope.ask-which-tenant-owns-refresh-token.md
+05-search-rank.draft.md
+07-cdn-purge.blocked-on-INFRA-221.md
+```
+
+A parked file carries one extra kebab-case segment naming the reason. The reason
+is written in the body too — the filename is the index, not the record — and the
+segment comes off when the file moves back to `tasks/`.
+
+For the same picture with the questions spelled out in full, and with anything
+odd flagged — a stale claim, a dirty tree, a dependency that will never be
+satisfied — call `status.md`. It is read-only and safe to run while a worker is
+mid-task.
 
 ## The loop
 
@@ -37,11 +66,14 @@ pickable, and which are waiting on a human or on another task.
 implement it.
 
 **2. Plan.** Call `plan.md`. The agent researches the actual code and writes
-`tasks/NN-short-description.md` — a self-contained plan with frontmatter.
+`NN-short-description.md` — a self-contained plan with frontmatter. It lands in
+`not-ready/` while it is still a draft or still has an open question in it, and
+in `tasks/` when it is finished and unambiguous.
 
 **3. Review.** You read the plan. This is the only step that needs a human, and
 it is cheap: a plan is a page of prose, not a diff. Wrong plans get edited or
-deleted here, before any code exists.
+deleted here, before any code exists. Answering the question in a `not-ready/`
+file and moving it to `tasks/` is how work gets released to the worker.
 
 **4. Work.** Call `task-worker.md`. It picks one idle task, runs it in a
 subagent (each task is self-contained, so a fresh context is enough), and
@@ -76,14 +108,19 @@ depends_on: 04-session-store, 06-rate-limiter
 ---
 ```
 
-`status` is one of:
+`status` is one of, with the folder each one lives in:
 
-- `planning` — being written
-- `waiting_decision` — needs a human answer before it can proceed
-- `blocked` — waiting on another task or something external
-- `ready_for_implementation` — reviewed, the worker may pick it up
-- `in_progress` — a worker has it
-- `done` — implemented, with its Outcome written
+| `status` | Folder | Meaning |
+|---|---|---|
+| `planning` | `not-ready/` | being written |
+| `waiting_decision` | `not-ready/` | needs an answer from you before it can proceed |
+| `blocked` | `not-ready/` | waiting on another task or something external |
+| `ready_for_implementation` | `tasks/` | reviewed, the worker may pick it up |
+| `in_progress` | `tasks/` | a worker has it |
+| `done` | `done/` | implemented, with its Outcome written |
+
+The two-digit prefix is unique across all three folders — it is an identifier as
+well as a priority, and `depends_on` refers to tasks by name.
 
 `risk` and the `touches_*` flags exist so you can tell at a glance which tasks
 deserve a careful read. A schema change and a CSS tweak are not the same review.
@@ -91,7 +128,8 @@ deserve a careful read. A schema change and a CSS tweak are not the same review.
 `depends_on` is optional and comma-separated. The worker will not pick a task
 until every name listed there sits in `done/`, so list a task only when this one
 genuinely cannot be built first — a decorative dependency parks the task until
-you notice.
+you notice. A dependency in `tasks/` or `not-ready/` is not satisfied, whatever
+its status says.
 
 ## What a good task looks like
 
@@ -187,11 +225,17 @@ mid-run and every tick after it politely does nothing until morning. The worker
 also checks `git status` before starting, because a session that died mid-task
 left its work in the tree and the next task must not be built on top of it.
 
-What this changes about your day: your job becomes `tasks/`. A task lands in the
-folder only after you have read it, so the review step is where you spend your
-attention, and the implementation happens whether you are watching or not. If
-you want the loop to stop touching something, set its `status` to anything other
-than `ready_for_implementation` — the worker skips it.
+What this changes about your day: your job becomes moving files between the two
+folders. A task lands in `tasks/` only after you have read it, so the review step
+is where you spend your attention, and the implementation happens whether you
+are watching or not. To take something back off the loop, move it to
+`not-ready/` and set its status — the worker never looks there.
+
+Which makes the morning routine `ls not-ready/`. Anything the worker gave up on
+overnight is in there with the reason in its filename, next to the drafts you
+had not finished. Clear that list and the loop has work again. `status.md` is
+the longer version of the same look, and it also tells you whether the loop is
+still running or died at 3am.
 
 ## Tip: give the planner room to run
 

@@ -1,0 +1,33 @@
+name: "@@TITLE@@"
+
+on:
+  push:
+    branches:
+      - @@BRANCH@@
+    paths:
+      - "@@MIGRATIONS_PATH@@/**"
+  workflow_dispatch:
+
+jobs:
+  migrate:
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    environment: @@ENVIRONMENT@@
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_ID: ${{ vars.SUPABASE_PROJECT_ID }}
+      # config.toml is parsed by `supabase link`, and every env var it
+      # interpolates must exist or the link fails. CI never signs anyone in, so
+      # auth provider secrets are placeholders here — add one line per provider
+      # referenced in config.toml.
+      # SUPABASE_AUTH_GOOGLE_SECRET: dummy-value
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Apply migrations
+        run: supabase link --project-ref $SUPABASE_PROJECT_ID && supabase migration up --linked
