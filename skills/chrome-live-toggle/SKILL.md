@@ -12,7 +12,7 @@ Pick the variant by how many states the change has:
 
 | States | Template | Project-specific seam |
 |---|---|---|
-| 2 (on/off) | `reference/injector-template.js` | `applyOn` / `applyOff` |
+| 2 (on/off) | `reference/toggle-template.js` | `applyOn` / `applyOff` |
 | N (a color, a theme, a size) | `reference/swatch-template.js` | `SWATCHES` / `applySwatch` |
 
 Both share the same injection, persistence, and retry machinery. Everything
@@ -20,7 +20,7 @@ below applies to both unless it says otherwise.
 
 **The only project-specific part is `applyOn` / `applyOff`.** The button shape,
 placement, boolean state, injection timing, and persistence are boilerplate in
-`reference/injector-template.js`. A request like "add /chrome-live-toggle to
+`reference/toggle-template.js`. A request like "add /chrome-live-toggle to
 example.com to make the background blue" means: take the template, fill
 `applyOn` with the change and `applyOff` with its inverse, register it, done.
 
@@ -55,7 +55,7 @@ example.com to make the background blue" means: take the template, fill
    target. To iterate on the script, open a **fresh** tab (`new_page`) — see the
    initScript-stacking gotcha below.
 2. **Craft `applyOn` / `applyOff`** in a copy of
-   `reference/injector-template.js`. Capture any original state ONCE, up front
+   `reference/toggle-template.js`. Capture any original state ONCE, up front
    (a var, or a `data-orig` attribute stashed at inject time). `applyOff` must
    be the exact inverse. Adapt the button's `right:` offset to sit left of any
    bottom-right chat/support widget.
@@ -74,6 +74,14 @@ example.com to make the background blue" means: take the template, fill
 
 ## Gotchas — each cost a debugging session
 
+- **Scope is the TAB, and it must stay that way.** `initScript` registered on a
+  page target dies when that tab closes — reopening the URL in a new tab is
+  clean. That is the contract. Do NOT register the injector on a browser-level
+  connection or via `Target.setAutoAttach`, which re-injects into every new
+  target for that URL and survives tab close; the control then looks
+  un-removable and outlives the demo. If a control reappears on a brand-new tab,
+  something OTHER than a page initScript is injecting it — check for a daemon
+  holding the debug port (`lsof -nP -iTCP:<port>`) before blaming this skill.
 - **initScript registrations STACK and cannot be hot-removed via the MCP.**
   Re-register a changed script on the same tab and BOTH the old and new versions
   run and fight each other. To iterate: **open a fresh tab, register there, and
@@ -86,6 +94,22 @@ example.com to make the background blue" means: take the template, fill
   The interval re-injects if the button gets removed AND reasserts the current
   applyOn/applyOff each tick, so a re-render that strips the override is undone
   within a tick. Keep all of it.
+- **The same source can run more than once in one document.** initScript, a
+  run-now `Runtime.evaluate`, and any CDP re-attach each execute it. Each run
+  otherwise gets its own state + `setInterval`, and an OFF instance fights an ON
+  one every tick, so the change flickers or looks like it never applied. The
+  template guards this with a `window.__chromeLive*Installed` flag — keep it. If
+  you drive multiple tabs from one browser-level CDP connection, ALSO dedupe
+  setup by `targetId`, since a tab can attach more than once.
+- **The visible color may not be the element's own background.** Modern buttons
+  (Tailwind/Kumo etc.) paint their fill with a child overlay — e.g. a
+  `<span class="absolute inset-0 bg-linear-to-b …">` gradient sitting ON TOP of
+  the button. Setting the button's `background-color` then computes correctly
+  (`getComputedStyle` reports your value) yet the pixel never changes, because
+  the overlay covers it. `getComputedStyle` will lie to you here. ALWAYS confirm
+  with a screenshot, not a computed-style read; if the color doesn't move,
+  inspect the children and recolor the overlay (`background-image:none` +
+  `background-color`) as well as the element itself.
 - **Reversibility means capturing the original first.** For DOM edits, stash the
   original at inject time (`el.setAttribute('data-orig', el.innerHTML)`) and
   restore it in `applyOff`. Never assume the "before" value — read and keep it
@@ -110,7 +134,7 @@ the E-code:
 | green knob right | ON | `E245.svg` | `reference/assets/toggle-on.svg` |
 
 The compact `height:40px` variants used at runtime are inlined as the `OFF` /
-`ON` strings at the top of `reference/injector-template.js`. The `assets/` files
+`ON` strings at the top of `reference/toggle-template.js`. The `assets/` files
 are the canonical full-size sources.
 
 ## The swatch look
@@ -142,10 +166,80 @@ function applySwatch(sw) { document.body.style.background = sw.value; }
 they only coincide when the change IS the color. For "make this button green",
 `color` is the visible green and `value` might be a class name.
 
+Optional `fill` takes any CSS background and overrides what the dot paints, so
+the dot can preview a gradient the change actually applies instead of a flat
+approximation. Derive it from the same values `applySwatch` writes — if they
+drift, the dot is lying about the result:
+
+```js
+function grad(top, bottom) { return 'linear-gradient(180deg,' + top + ' 0%,' + bottom + ' 100%)'; }
+{ color: '#f6821f', value: 'orange', fill: grad('#f9a34a', '#f6821f') }
+```
+
+`color` stays the flat tone and still drives checkmark contrast — luminance
+can't be probed from a gradient string.
+
+The checkmark auto-picks white or near-black per dot luminance, so a black
+swatch still reads. That is boilerplate — don't hardcode a check color.
+
+**The visible color of a component is often not its `background-color`.** Modern
+design systems paint buttons with an absolutely positioned overlay child fed by
+CSS custom properties, set inline on the host. Setting `background-color` there
+does nothing visible. Check before writing `applySwatch`:
+
+```js
+getComputedStyle(btn).backgroundImage           // 'none' but still looks colored?
+[...btn.children].map(c => c.className)         // look for `absolute inset-0`
+btn.getAttribute('style')                       // the --vars that actually drive it
+```
+
+Override the custom properties instead — and stash their original values ONCE
+before the first write, because the app's originals live in the same inline
+`style` attribute you are about to overwrite.
+
 **Make `SWATCHES[0]` the page's original value.** Selection lives in a
 per-document var, so a manual reload resets to index 0 — with the original
 there, that reload restores the page cleanly. This is the swatch's equivalent of
 `applyOff` being the exact inverse of `applyOn`; there is no separate revert.
+
+## Verifying on a live page — four ways to fool yourself
+
+- **The first render after a reload is not the final color.** Injected styles
+  land before the app finishes settling, so a screenshot taken right after
+  `Page.reload` can show a washed-out or half-applied state. Re-shoot after the
+  page settles before judging any color, or you will chase a bug that isn't
+  there.
+- **Synthetic hover is unreliable.** `Input.dispatchMouseEvent` hover state gets
+  dropped when the hovered element's own animation triggers a layout recompute,
+  because the real OS cursor is elsewhere — so the pill can measure as open and
+  still screenshot as collapsed. Confirm expansion by *measuring* (`getBounding
+  ClientRect().width`), and for functional checks skip the mouse entirely:
+  `pill.lastChild.children[i].click()` fires the same handler.
+- **Derive the screenshot scale per tab.** `Page.captureScreenshot` returns
+  device pixels; CSS rects are CSS pixels. The ratio is that tab's
+  `img.width / innerWidth` — tabs in the same browser differ. Hardcode it and
+  your crops silently land on blank page.
+- **Never label a state by the order you clicked.** Read it back
+  (`selected dot background`, the applied value) and label from that. Two of my
+  screenshots came out swapped this way before I started verifying.
+
+## When the page keeps moving
+
+Anything the page re-derives — an auto-rotating carousel, a re-rendering
+form — must be re-evaluated on the reassert tick, not set once at inject time,
+or it goes stale on the next rotation:
+
+```js
+// inside applySwatch, which the 200ms interval re-runs
+var onSlide2 = panel.innerText.indexOf('AI Gateway') !== -1;
+label.style.setProperty('color', onSlide2 ? '#7b7b7b' : '#fce3e3', 'important');
+```
+
+Watch for **furniture living outside the container you scoped to**. A
+full-width `<header>` overlay sitting above a themed panel is not a descendant
+of it, so `section.foo .text-x { … }` silently misses it — and it is exactly
+what goes invisible when you darken the panel underneath. Scope by what
+overlaps visually, not by what nests in the DOM.
 
 ## Worked example (betterstack.com)
 
@@ -180,7 +274,7 @@ the headline restores from `data-orig`.
 
 ## Files
 
-- `reference/injector-template.js` — boolean toggle boilerplate, with the one
+- `reference/toggle-template.js` — boolean toggle boilerplate, with the one
   project-specific seam (`applyOn` / `applyOff`) marked.
 - `reference/swatch-template.js` — N-way hover-expanding swatch picker, seams
   `SWATCHES` / `applySwatch`.

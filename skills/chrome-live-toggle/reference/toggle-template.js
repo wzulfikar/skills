@@ -1,4 +1,4 @@
-// chrome-live-toggle — injector template.
+// chrome-live-toggle — toggle injector template (boolean on/off).
 //
 // Register this string as navigate_page's `initScript` (Puppeteer
 // evaluateOnNewDocument) so it re-runs on every document load and survives the
@@ -9,6 +9,13 @@
 // boilerplate; leave it alone.
 
 (function () {
+  // Idempotency guard: initScript + a run-now + any CDP re-attach can each run
+  // this SAME source in one document. Without this each run gets its own state
+  // + setInterval, and an OFF instance fights an ON one every tick — the change
+  // flickers or appears not to apply. Exactly one instance per document.
+  if (window.__chromeLiveToggleInstalled) return;
+  window.__chromeLiveToggleInstalled = true;
+
   // OFF = red knob LEFT; ON = green knob RIGHT (OpenMoji, inlined; map by how
   // it RENDERS, not by the E-code number). height:40px compact variants.
   var OFF = '<svg viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg" style="height:40px;width:auto;display:block"><g><path fill="#d0cfce" d="M51.0984,45.9794H21.0578c-5.5116,0-9.9797-4.4681-9.9797-9.9797s4.4681-9.9797,9.9797-9.9797h30.0406c5.5116,0,9.9797,4.4681,9.9797,9.9797S56.6101,45.9794,51.0984,45.9794z"/><circle cx="20.9228" cy="36" r="10.0009" fill="#ea5a47"/></g><g fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M51.0984,45.9794H21.0578c-5.5116,0-9.9797-4.4681-9.9797-9.9797s4.4681-9.9797,9.9797-9.9797h30.0406c5.5116,0,9.9797,4.4681,9.9797,9.9797S56.6101,45.9794,51.0984,45.9794z"/><circle cx="20.9228" cy="36" r="10.0009"/></g></svg>';

@@ -1,6 +1,6 @@
 // chrome-live-toggle — swatch injector template (N-way color picker).
 //
-// Same contract as injector-template.js: register this string as
+// Same contract as toggle-template.js: register this string as
 // navigate_page's `initScript` (Puppeteer evaluateOnNewDocument) so it re-runs
 // on every document load and survives the user's manual reloads.
 //
@@ -9,6 +9,12 @@
 // double-inject guard — is boilerplate; leave it alone.
 
 (function () {
+  // Idempotency guard: initScript + a run-now + any CDP re-attach can each run
+  // this SAME source in one document, each spinning up its own state + interval
+  // that then fight. Exactly one instance per document.
+  if (window.__chromeLiveSwatchInstalled) return;
+  window.__chromeLiveSwatchInstalled = true;
+
   var ROOT_ID = 'chrome-live-swatch';
 
   // ===== THE ONLY PROJECT-SPECIFIC PART =====
@@ -35,14 +41,33 @@
   var EASE = 'cubic-bezier(.32,.72,0,1)';
 
   var CHEVRON = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#3c3c3c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>';
-  var CHECK = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#111" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
+  function check(stroke) {
+    return '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="' + stroke + '" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
+  }
 
-  function dot(color) {
+  // A dark swatch needs a light checkmark, or it vanishes into the dot.
+  function isDark(color) {
+    var probe = document.createElement('span');
+    probe.style.color = color;
+    document.body.appendChild(probe);
+    var rgb = getComputedStyle(probe).color.match(/[\d.]+/g);
+    probe.remove();
+    if (!rgb) return false;
+    return (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) / 255 < 0.55;
+  }
+
+  // What the dot paints. Optional `fill` takes any CSS background — use it to
+  // mirror a gradient the change actually applies, so the dot previews the real
+  // thing instead of a flat approximation. `color` stays the flat tone and keeps
+  // driving checkmark contrast.
+  function fillOf(sw) { return sw.fill || sw.color; }
+
+  function dot(background) {
     var d = document.createElement('span');
     var s = d.style;
     s.display = 'inline-block'; s.position = 'relative'; s.verticalAlign = 'middle';
     s.width = DOT + 'px'; s.height = DOT + 'px'; s.borderRadius = '50%';
-    s.background = color; s.boxSizing = 'border-box';
+    s.background = background; s.boxSizing = 'border-box';
     s.border = '1px solid rgba(0,0,0,.12)';
     return d;
   }
@@ -75,7 +100,7 @@
     cs.width = CHEV + 'px'; cs.opacity = '1'; cs.flex = '0 0 auto';
     cs.transition = 'width 260ms ' + EASE + ', opacity 140ms linear';
 
-    var preview = dot(SWATCHES[sel].color);
+    var preview = dot(fillOf(SWATCHES[sel]));
     var vs = preview.style;
     vs.flex = '0 0 auto'; vs.marginLeft = GAP + 'px'; vs.opacity = '1';
     vs.transition = 'width 260ms ' + EASE + ', margin-left 260ms ' + EASE + ', opacity 140ms linear';
@@ -88,11 +113,11 @@
 
     var checks = [];
     SWATCHES.forEach(function (sw, i) {
-      var d = dot(sw.color);
+      var d = dot(fillOf(sw));
       d.style.flex = '0 0 auto';
       if (i) d.style.marginLeft = GAP + 'px';
       var ck = document.createElement('span');
-      ck.innerHTML = CHECK;
+      ck.innerHTML = check(isDark(sw.color) ? '#fff' : '#111');
       var ks = ck.style;
       ks.position = 'absolute'; ks.inset = '0'; ks.display = 'flex';
       ks.alignItems = 'center'; ks.justifyContent = 'center';
@@ -104,7 +129,7 @@
         e.stopPropagation();
         sel = i;
         checks.forEach(function (c, j) { c.style.opacity = j === sel ? '1' : '0'; });
-        preview.style.background = sw.color;
+        preview.style.background = fillOf(sw);
         applySwatch(sw);
       });
       strip.appendChild(d);
