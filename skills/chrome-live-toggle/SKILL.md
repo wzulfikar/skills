@@ -182,6 +182,28 @@ can't be probed from a gradient string.
 The checkmark auto-picks white or near-black per dot luminance, so a black
 swatch still reads. That is boilerplate — don't hardcode a check color.
 
+## Finding the target element
+
+Utility-class frameworks compose and hash class names — `className` is not a
+stable handle, so don't select on it. Prefer, in order: a stable `id` /
+`data-*`, an `aria-label`, exact visible text, then structural position.
+
+```js
+[].slice.call(document.querySelectorAll('button'))
+  .filter(function (b) { return b.textContent.trim() === 'Sign in'; })[0];
+```
+
+Filter the whole candidate set rather than taking the first `querySelector`
+hit, so 0 matches and 2 matches are both visible to you instead of silently
+styling the wrong node.
+
+**Re-query every tick; never cache the node.** Re-renders replace elements — a
+reference captured at inject time ends up styling a detached node while the
+live one sits unstyled. Same class of bug as a stale `applyOn`, and it presents
+as "the change randomly stops working."
+
+## Recoloring a component
+
 **The visible color of a component is often not its `background-color`.** Modern
 design systems paint buttons with an absolutely positioned overlay child fed by
 CSS custom properties, set inline on the host. Setting `background-color` there
@@ -197,10 +219,18 @@ Override the custom properties instead — and stash their original values ONCE
 before the first write, because the app's originals live in the same inline
 `style` attribute you are about to overwrite.
 
+Write overrides with `setProperty(name, value, 'important')`. The tick has to
+win against the app's own inline writes on re-render, and same-specificity
+inline-vs-inline is decided by whoever wrote last.
+
 **Make `SWATCHES[0]` the page's original value.** Selection lives in a
 per-document var, so a manual reload resets to index 0 — with the original
 there, that reload restores the page cleanly. This is the swatch's equivalent of
 `applyOff` being the exact inverse of `applyOn`; there is no separate revert.
+
+If the user gives an explicit order and index 0 isn't the page's stock look,
+keep their order — and say once that a reload now lands on a modified page
+instead of a clean one. Don't silently reorder their dots to satisfy the rule.
 
 ## Verifying on a live page — four ways to fool yourself
 
