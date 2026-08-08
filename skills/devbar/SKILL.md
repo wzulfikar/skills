@@ -1,6 +1,6 @@
 ---
 name: devbar
-description: Add a dev-only DevBar to an app you own — a floating bottom-right pill that expands on hover into color swatches, so a design value (background, accent, surface) can be flipped live in the running app instead of edit-rebuild-look. Use for "add a devbar", "/devbar add Dev Bar to change the background", "let me try a few background colors live", "add a swatch picker to my app". Templates for React/Next.js, plain web, and SwiftUI. For injecting into someone else's live page instead, use chrome-live-toggle.
+description: Add or adjust a dev-only DevBar in an app you own — a floating bottom-right pill that expands on hover into color swatches, so a design value (background, accent, surface) can be flipped live in the running app instead of edit-rebuild-look. First call installs a component from a template (React/Next.js, plain web, or SwiftUI); later calls edit the swatches and apply() of the DevBar already in the repo. Use for "add a devbar", "/devbar add Dev Bar to change the background", "add a swatch to the devbar", "let me try a few background colors live", "add a swatch picker to my app". For injecting into someone else's live page instead, use chrome-live-toggle.
 ---
 
 # DevBar
@@ -46,7 +46,43 @@ All three have the same two seams and nothing else to edit:
 - **`SWATCHES` / `swatches`** — the candidates.
 - **`apply()` / reading `DevBarState.shared.value`** — where the value lands.
 
+## First: is there already a DevBar in this repo?
+
+**Always check before doing anything else.** The skill has two modes and the
+answer picks one:
+
+```bash
+rg -l "DevBar|devbar" --glob '!node_modules' --glob '!*.md' .
+```
+
+| Found | Mode | What you do |
+|---|---|---|
+| nothing | **Initialize** | Copy a template in, wire it, mount it |
+| a DevBar component | **Tweak** | Edit the seams of THAT file, in place |
+
+**Initialize is a one-time move: the template becomes a file in their repo.**
+From then on it is their source, not the skill's. Never copy a second template
+next to an existing DevBar, and never re-copy over one they have edited — you
+would silently drop their swatches and their `apply()`.
+
+Before copying, say where it is going and let them redirect it:
+
+> No DevBar in this repo yet. I'd add `components/DevBar.tsx` from the
+> React/Next template and mount it in `app/layout.tsx`, dev-only. Want it
+> somewhere else, or written from scratch against your own conventions?
+
+Take the template unless they say otherwise — it already carries the geometry,
+the luminance-picked checkmark, the hover grace period, and the SSR guard, all
+of which are easy to get subtly wrong from scratch. If they want it hand-rolled,
+build it to the same behavior described in **The look** and **Traps**.
+
+**Tweak mode is the common case.** "/devbar add a warmer paper option" on a repo
+that already has one means: open the existing file, edit `SWATCHES` and `apply`,
+touch nothing else. Mounting is already done. Don't re-explain the install.
+
 ## Workflow
+
+Steps 1–3 apply to both modes. Step 4 is where they diverge.
 
 1. **Name the knob.** "Change the background" means: which surface, and what
    does the app currently read for it — a CSS variable, a Tailwind token, a
@@ -62,7 +98,9 @@ All three have the same two seams and nothing else to edit:
    relaunch lands on index 0 — with the original there, that's the stock app.
    Otherwise "I cleared storage" silently means "I'm now looking at a modified
    build." This replaces chrome-live-toggle's `applyOff`; there is no revert.
-4. **Copy the template, fill the two seams, mount it dev-only** (below).
+4. **Initialize:** copy the template into their tree, fill the two seams, mount
+   it dev-only (below). **Tweak:** edit the seams in the file that is already
+   there; skip the mount entirely.
 5. **Verify by looking, not by reading state.** Screenshot idle, screenshot
    hovered, click a dot and screenshot again. A computed style can report your
    value while an overlay child paints something else on top.
@@ -115,6 +153,9 @@ picker does nothing," and it is the trap that costs the debugging session.
 
 ## Traps
 
+- **A second call is a tweak, not a second install.** Copying the template over
+  a DevBar the user has already filled in throws away their swatches, their
+  `apply()`, and any offset they tuned for their own furniture. Grep first.
 - **A dot's `color` is not necessarily its `value`.** `color` is what the dot
   paints and what drives checkmark contrast; `value` is whatever `apply()`
   consumes — a class name, a token, a gradient string. They coincide only when
