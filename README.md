@@ -48,6 +48,36 @@ overwrites anything customised in them — for `agents-queue` that is the
 Promotion section at the bottom of `task-worker.md`. Save it first, or diff
 after.
 
+## Skills you don't want installed
+
+An installed skill puts its `description` in context every session — roughly 130
+tokens each, whether or not it ever fires. Worth it for something reached for
+weekly, wasteful for a one-off like `opennext-cf-env-files`, which sets up env
+files once per codebase and then never again.
+
+Those stay uninstalled and get found on demand. [`wildan-skills`](skills/wildan-skills)
+is the one skill that *is* installed, and all it does is run:
+
+```bash
+./bin/skills-index opennext env   # every word must match name or description
+./bin/skills-index                # all of them
+./bin/skills-index --show devbar  # path to one SKILL.md
+```
+
+which prints each skill's name, absolute path and description. The agent reads
+the `SKILL.md` at the path it picked and follows it — no install, no full path
+typed by hand. One description in context covers every uninstalled skill.
+
+So: **"use wildan's skill to add opennext env files on cf"** works, and costs
+nothing the rest of the time. Once a skill is being used regularly, install it
+and let it advertise itself directly.
+
+`skills-index` skips folders with no `SKILL.md`, so the empty placeholder
+directories here stay invisible until they have content.
+
+Full write-up, including how to word a one-off skill's description so it can be
+found: [docs/wildan-skills](docs/wildan-skills).
+
 ## What's here
 
 | Skill | For |
@@ -55,6 +85,7 @@ after.
 | [`agents-queue`](skills/agents-queue) | Put a reviewed task queue in the repo as `agents-queue/`, so plans get written and read before anything is built — then run the worker on a loop and only do the planning |
 | [`github-actions`](skills/github-actions) | Add a workflow from a template that already runs in production — Supabase migrations on push to main, or a deploy — and the secrets, variables and environment it needs |
 | [`mac-app-scripts`](skills/mac-app-scripts) | Give a macOS app repo the standard `build`, `dev`, `test`, `bundle`, `clean` scripts and the `.work/` shims that make them `work build`, `work dev` |
+| [`wildan-skills`](skills/wildan-skills) | Find and follow a skill in this repo that isn't installed, so one-off skills cost no context until asked for |
 
 ## Writing one
 

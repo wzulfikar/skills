@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# name: skills-index
+# description: List the skills in this repo with their descriptions, for an agent to pick from
+# created: 2026-08-29
+#
+# Usage:
+#   skills-index              # every skill: name, path, description
+#   skills-index opennext env # only skills matching those words
+#   skills-index --show NAME  # absolute path to that skill's SKILL.md
+#
+# Folders without a SKILL.md are placeholders and are skipped.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# The description is a single YAML line in the frontmatter, but may be folded
+# across lines; take everything up to the next key or the closing ---.
+description() {
+    awk '
+        NR == 1 && $0 == "---" { inside = 1; next }
+        inside && $0 == "---" { exit }
+        inside && /^description:/ { sub(/^description: */, ""); grab = 1; print; next }
+        inside && grab && /^[a-zA-Z_-]+:/ { exit }
+        inside && grab { sub(/^ */, " "); printf "%s", $0 }
+    ' "$1" | tr -d '\n'
+}
+
+if [ "${1:-}" = "--show" ]; then
+    name="${2:?usage: skills-index --show NAME}"
+    file="$ROOT/skills/$name/SKILL.md"
+    [ -f "$file" ] || { echo "no skill named $name" >&2; exit 1; }
+    echo "$file"
+    exit 0
+fi
+
+found=0
+for file in "$ROOT"/skills/*/SKILL.md; do
+    [ -f "$file" ] || continue
+    dir="$(dirname "$file")"
+    name="$(basename "$dir")"
+    desc="$(description "$file")"
+
+    # Every query word has to appear somewhere in the name or description.
+    if [ $# -gt 0 ]; then
+        haystack="$(printf '%s %s' "$name" "$desc" | tr '[:upper:]' '[:lower:]')"
+        for word in "$@"; do
+            case "$haystack" in
+                *"$(printf '%s' "$word" | tr '[:upper:]' '[:lower:]')"*) ;;
+                *) continue 2 ;;
+            esac
+        done
+    fi
+
+    found=$((found + 1))
+    printf '%s\n  %s\n  %s\n\n' "$name" "$file" "$desc"
+done
+
+if [ "$found" -eq 0 ]; then
+    echo "nothing matched: $*  — rerun with no arguments to see everything" >&2
+    exit 1
+fi
