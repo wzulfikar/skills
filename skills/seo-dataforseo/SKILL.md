@@ -1,5 +1,5 @@
 ---
-name: dataforseo
+name: seo-dataforseo
 description: SEO data via DataForSEO's pay-as-you-go API: organic traffic estimates for a list of domains, keyword search volume / difficulty / CPC, backlink and SERP data. Use when asked to size a competitor's organic traffic, check whether a keyword is worth targeting, compare a set of domains, or get any Ahrefs/Semrush-shaped number without a subscription. Also the place to check the account balance before spending it.
 ---
 
@@ -8,6 +8,10 @@ description: SEO data via DataForSEO's pay-as-you-go API: organic traffic estima
 The working substitute for the Ahrefs API, which is dead on the user's Starter
 plan (0 API units, see `~/manager/tools/ahrefs.md`). Pay-as-you-go, no
 subscription, and roughly two orders of magnitude cheaper per question.
+
+Read side only: it measures what already ranks. To *push* URLs at a search
+engine so they get crawled in the first place, that is the sibling skill
+`seo-indexnow`.
 
 > **The balance is $0.41 and the minimum top-up is $50.** Treat every billed
 > call as coming out of a fixed pot. Three rules, in order:
