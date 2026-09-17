@@ -9,7 +9,7 @@ The working substitute for the Ahrefs API, which is dead on the user's Starter
 plan (0 API units, see `~/manager/tools/ahrefs.md`). Pay-as-you-go, no
 subscription, and roughly two orders of magnitude cheaper per question.
 
-Read side only: it measures what already ranks. To *push* URLs at a search
+Read side only: it measures what already ranks. To _push_ URLs at a search
 engine so they get crawled in the first place, that is the sibling skill
 `seo-indexnow`.
 
@@ -68,31 +68,31 @@ Costs are **measured only**. `unmeasured` means exactly that: nobody has run it
 and been billed, so do not quote a number from the published rate card, because it
 overstates reality by roughly 10x.
 
-| Job | Endpoint | | Cost |
-|---|---|---|---|
-| **Balance / spend** | `appendix/user_data` | ✓ | **free** |
-| **Organic traffic, many domains** | `dataforseo_labs/google/bulk_traffic_estimation/live` | ✓ | **$0.0122** / 2 domains · **$0.0136** / 13 |
-| **Keyword volume + KD + CPC** | `dataforseo_labs/google/keyword_overview/live` | ✓ | **$0.0143** / 20 keywords |
-| Anything below, ad hoc | any path | ✓ via `raw` | whatever that endpoint costs |
-| Difficulty only, in bulk | `dataforseo_labs/google/bulk_keyword_difficulty/live` | ○ | unmeasured |
-| What keywords does a domain rank for | `dataforseo_labs/google/ranked_keywords/live` | ○ | unmeasured |
-| Who else ranks where this domain ranks | `dataforseo_labs/google/competitors_domain/live` | ○ | unmeasured |
-| Who owns this SERP, for a keyword set | `dataforseo_labs/google/serp_competitors/live` | ○ | unmeasured |
-| Longer-tail variants of a seed | `dataforseo_labs/google/keyword_suggestions/live` | ○ | unmeasured |
-| Related searches ("searches related to") | `dataforseo_labs/google/related_keywords/live` | ○ | unmeasured |
-| Keywords a site already targets | `dataforseo_labs/google/keywords_for_site/live` | ○ | unmeasured |
-| Volume back to 2019 | `dataforseo_labs/google/historical_search_volume/live` | ○ | unmeasured |
-| Traffic trend, not a snapshot | `dataforseo_labs/google/historical_bulk_traffic_estimation/live` | ○ | unmeasured |
-| Domain's whole rank/traffic summary | `dataforseo_labs/google/domain_rank_overview/live` | ○ | unmeasured |
-| Which pages of a site pull the traffic | `dataforseo_labs/google/relevant_pages/live` | ○ | unmeasured |
-| Keywords two domains both rank for | `dataforseo_labs/google/domain_intersection/live` | ○ | unmeasured |
-| Informational vs commercial vs transactional | `dataforseo_labs/google/search_intent/live` | ○ | unmeasured |
-| Backlink profile summary | `backlinks/summary/live` | ○ | unmeasured |
-| Backlink summary for up to 1000 targets | `backlinks/bulk_ranks/live` | ○ | unmeasured |
-| Who links to a competitor | `backlinks/referring_domains/live` | ○ | unmeasured |
-| Live Google SERP for a query | `serp/google/organic/live/advanced` | ○ | unmeasured |
-| Google Ads volume (source of truth for volume) | `keywords_data/google_ads/search_volume/live` | ○ | unmeasured |
-| Search interest over time | `keywords_data/google_trends/explore/live` | ○ | unmeasured |
+| Job                                            | Endpoint                                                         |             | Cost                                       |
+| ---------------------------------------------- | ---------------------------------------------------------------- | ----------- | ------------------------------------------ |
+| **Balance / spend**                            | `appendix/user_data`                                             | ✓           | **free**                                   |
+| **Organic traffic, many domains**              | `dataforseo_labs/google/bulk_traffic_estimation/live`            | ✓           | **$0.0122** / 2 domains · **$0.0136** / 13 |
+| **Keyword volume + KD + CPC**                  | `dataforseo_labs/google/keyword_overview/live`                   | ✓           | **$0.0143** / 20 keywords                  |
+| Anything below, ad hoc                         | any path                                                         | ✓ via `raw` | whatever that endpoint costs               |
+| Difficulty only, in bulk                       | `dataforseo_labs/google/bulk_keyword_difficulty/live`            | ○           | unmeasured                                 |
+| What keywords does a domain rank for           | `dataforseo_labs/google/ranked_keywords/live`                    | ○           | unmeasured                                 |
+| Who else ranks where this domain ranks         | `dataforseo_labs/google/competitors_domain/live`                 | ○           | unmeasured                                 |
+| Who owns this SERP, for a keyword set          | `dataforseo_labs/google/serp_competitors/live`                   | ○           | unmeasured                                 |
+| Longer-tail variants of a seed                 | `dataforseo_labs/google/keyword_suggestions/live`                | ○           | unmeasured                                 |
+| Related searches ("searches related to")       | `dataforseo_labs/google/related_keywords/live`                   | ○           | unmeasured                                 |
+| Keywords a site already targets                | `dataforseo_labs/google/keywords_for_site/live`                  | ○           | unmeasured                                 |
+| Volume back to 2019                            | `dataforseo_labs/google/historical_search_volume/live`           | ○           | unmeasured                                 |
+| Traffic trend, not a snapshot                  | `dataforseo_labs/google/historical_bulk_traffic_estimation/live` | ○           | unmeasured                                 |
+| Domain's whole rank/traffic summary            | `dataforseo_labs/google/domain_rank_overview/live`               | ○           | unmeasured                                 |
+| Which pages of a site pull the traffic         | `dataforseo_labs/google/relevant_pages/live`                     | ○           | unmeasured                                 |
+| Keywords two domains both rank for             | `dataforseo_labs/google/domain_intersection/live`                | ○           | unmeasured                                 |
+| Informational vs commercial vs transactional   | `dataforseo_labs/google/search_intent/live`                      | ○           | unmeasured                                 |
+| Backlink profile summary                       | `backlinks/summary/live`                                         | ○           | unmeasured                                 |
+| Backlink summary for up to 1000 targets        | `backlinks/bulk_ranks/live`                                      | ○           | unmeasured                                 |
+| Who links to a competitor                      | `backlinks/referring_domains/live`                               | ○           | unmeasured                                 |
+| Live Google SERP for a query                   | `serp/google/organic/live/advanced`                              | ○           | unmeasured                                 |
+| Google Ads volume (source of truth for volume) | `keywords_data/google_ads/search_volume/live`                    | ○           | unmeasured                                 |
+| Search interest over time                      | `keywords_data/google_trends/explore/live`                       | ○           | unmeasured                                 |
 
 Full appendix of paths at the bottom.
 
@@ -115,13 +115,13 @@ the ✓ ones genuinely cannot, because its cost is unknown and the balance is no
 
 ## Auth
 
-| | |
-|---|---|
-| Base URL | `https://api.dataforseo.com` |
-| Env var | `DATAFORSEO_API_KEY` |
-| Header | `Authorization: Basic $DATAFORSEO_API_KEY` |
-| Encoding | **The key is already base64.** Do not re-encode it. |
-| Account | `wildan@klu.so`, key lives in `~/manager/.envrc` (direnv) |
+|          |                                                           |
+| -------- | --------------------------------------------------------- |
+| Base URL | `https://api.dataforseo.com`                              |
+| Env var  | `DATAFORSEO_API_KEY`                                      |
+| Header   | `Authorization: Basic $DATAFORSEO_API_KEY`                |
+| Encoding | **The key is already base64.** Do not re-encode it.       |
+| Account  | `wildan@klu.so`, key lives in `~/manager/.envrc` (direnv) |
 
 Read it from the environment. **Never print it, never write it to a file, never
 put it in a URL.**
@@ -138,7 +138,7 @@ Balance is at `.tasks[0].result[0].money.balance`.
 ## Request shape
 
 All the endpoints worth using end in `/live`: one POST in, results out, **no
-polling and no task_get round trip.** The body is always an *array* of task
+polling and no task_get round trip.** The body is always an _array_ of task
 objects. A bare object is a 400.
 
 ```jsonc
@@ -152,16 +152,16 @@ objects. A bare object is a 400.
 
 Results are at `tasks[0].result[0].items[]`. The fields that matter:
 
-| Want | Path on the item |
-|---|---|
-| Domain | `target` |
-| Est. monthly organic visits | `metrics.organic.etv` |
-| Ranking keyword count | `metrics.organic.count` |
-| Keyword | `keyword` |
-| Search volume | `keyword_info.search_volume` |
-| CPC | `keyword_info.cpc` |
-| Competition | `keyword_info.competition_level` |
-| Difficulty (0-100) | `keyword_properties.keyword_difficulty` |
+| Want                        | Path on the item                        |
+| --------------------------- | --------------------------------------- |
+| Domain                      | `target`                                |
+| Est. monthly organic visits | `metrics.organic.etv`                   |
+| Ranking keyword count       | `metrics.organic.count`                 |
+| Keyword                     | `keyword`                               |
+| Search volume               | `keyword_info.search_volume`            |
+| CPC                         | `keyword_info.cpc`                      |
+| Competition                 | `keyword_info.competition_level`        |
+| Difficulty (0-100)          | `keyword_properties.keyword_difficulty` |
 
 `location_code` is `2000 + the ISO 3166 numeric country code`: **2840** US,
 **2826** UK, **2276** Germany, **2246** Finland. Location and language change

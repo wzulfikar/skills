@@ -9,9 +9,11 @@
 //   Search    GET /twitter/search?query=..&type=..  -> ~20 posts/page, next_cursor
 //   Post      GET /twitter/tweets/{id}              -> single post w/ stats
 //
-// Auth: SOCIALDATA_API_KEY. Taken from the environment if set, else read from
-// the manager root .envrc (so `mngr script socialdata ...` works with or without
-// direnv loaded). The key is never printed.
+// Auth: SOCIALDATA_API_KEY. This is a SHARED, account-wide key (same for
+// every project), so it is taken from the environment if set, else from
+// ~/manager/.envrc — never from the current project's env files, which would
+// let a per-project .envrc silently shadow the shared key. The key is never
+// printed.
 //
 // Usage:
 //   mngr script socialdata profile <username>              profile summary
@@ -21,19 +23,21 @@
 //   add --json to any command for raw JSON
 
 import { readFileSync } from "fs";
+import { homedir } from "os";
 
-const ROOT = new URL("..", import.meta.url).pathname;
 const BASE = "https://api.socialdata.tools";
 
+// Shared, account-wide key: same for every project, so this deliberately
+// never reads a cwd env file. env first, then the one known location, then a
+// hard error — no cwd fallback.
 function apiKey(): string {
   if (process.env.SOCIALDATA_API_KEY) return process.env.SOCIALDATA_API_KEY;
-  // Fallback: pull it out of the manager root .envrc without shelling out.
   try {
-    const envrc = readFileSync(`${ROOT}.envrc`, "utf8");
-    const m = envrc.match(/^\s*export\s+SOCIALDATA_API_KEY\s*=\s*(.+)\s*$/m);
+    const envrc = readFileSync(`${homedir()}/manager/.envrc`, "utf8");
+    const m = envrc.match(/^\s*(?:export\s+)?SOCIALDATA_API_KEY\s*=\s*(.+?)\s*$/m);
     if (m) return m[1].trim().replace(/^["']|["']$/g, "");
   } catch {}
-  console.error("SOCIALDATA_API_KEY not found in env or .envrc");
+  console.error("SOCIALDATA_API_KEY not found in environment or ~/manager/.envrc (shared key)");
   process.exit(1);
 }
 

@@ -97,6 +97,13 @@ its extras (tweet transcript, community tweets) if a task needs them.
 | **socialdata.tools** | **X / Twitter only** | `Authorization: Bearer <key>` | **$0.20 / 1k items** — per tweet or user |
 | **socialcrawl.dev** | **48 platforms** (Instagram, Threads, TikTok, LinkedIn, Reddit, YouTube, Facebook, Bluesky, Pinterest, Google, HN, …) incl. X | `x-api-key: <key>` | credit-based: 1 cr standard call, ~3 cr typical, **20 cr universal search** |
 
+Both keys are **shared, account-wide** (`SOCIALDATA_API_KEY`,
+`SOCIALCRAWL_API_KEY`) — the same key everywhere, not per-project. Both
+scripts read the environment if set, else `~/manager/.envrc`. Env files in
+the current project's cwd (`.env`, `.env.local`, `.envrc`) are deliberately
+never read, so a project-local `.envrc` can't silently shadow the shared
+key.
+
 ## Which provider
 
 ```

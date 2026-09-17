@@ -33,22 +33,28 @@ import { readFileSync } from "fs";
 import { homedir } from "os";
 
 const BASE = "https://api.dataforseo.com";
-const SCRIPT_DIR = new URL(".", import.meta.url).pathname;
+
+// Shared, account-wide key: same for every project, so this deliberately
+// never reads a cwd env file (that would let a per-project .envrc shadow the
+// one shared key with something else). env first, then the one known
+// location, then a hard error — no cwd fallback.
+function sharedEnvVar(name: string): string {
+  if (process.env[name]) return process.env[name]!;
+  try {
+    const envrc = readFileSync(`${homedir()}/manager/.envrc`, "utf8");
+    const m = envrc.match(
+      new RegExp(`^\\s*(?:export\\s+)?${name}\\s*=\\s*(.+?)\\s*$`, "m"),
+    );
+    if (m) return m[1].trim().replace(/^["']|["']$/g, "");
+  } catch {}
+  console.error(
+    `${name} not found in environment or ~/manager/.envrc (shared key)`,
+  );
+  process.exit(1);
+}
 
 function apiKey(): string {
-  if (process.env.DATAFORSEO_API_KEY) return process.env.DATAFORSEO_API_KEY;
-  // Fallback: pull it out of a known .envrc without shelling out, so this runs
-  // with or without direnv loaded.
-  const candidates = [`${process.cwd()}/.envrc`];
-  for (const path of candidates) {
-    try {
-      const envrc = readFileSync(path, "utf8");
-      const m = envrc.match(/^\s*export\s+DATAFORSEO_API_KEY\s*=\s*(.+?)\s*$/m);
-      if (m) return m[1].trim().replace(/^["']|["']$/g, "");
-    } catch {}
-  }
-  console.error("DATAFORSEO_API_KEY not found in env or .envrc");
-  process.exit(1);
+  return sharedEnvVar("DATAFORSEO_API_KEY");
 }
 
 function headers() {
